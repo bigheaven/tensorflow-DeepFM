@@ -33,17 +33,17 @@ class FeatureDictionary(object):
         self.feat_dict = {}
         tc = 0
         for col in df.columns:
-            if col in self.ignore_cols:
+            if col in self.ignore_cols: #不处理的列
                 continue
-            if col in self.numeric_cols:
+            if col in self.numeric_cols: #数字特征
                 # map to a single index
-                self.feat_dict[col] = tc
+                self.feat_dict[col] = tc #一列给一个编号
                 tc += 1
             else:
                 us = df[col].unique()
-                self.feat_dict[col] = dict(zip(us, range(tc, len(us)+tc)))
+                self.feat_dict[col] = dict(zip(us, range(tc, len(us)+tc))) #存放这一列所有编号
                 tc += len(us)
-        self.feat_dim = tc
+        self.feat_dim = tc #特征总数 ？
 
 
 class DataParser(object):
