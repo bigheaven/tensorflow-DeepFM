@@ -67,8 +67,8 @@ class DeepFM(BaseEstimator, TransformerMixin):
 
             tf.set_random_seed(self.random_seed)
 
-            self.feat_index = tf.placeholder(tf.int32, shape=[None, None],
-                                                 name="feat_index")  # None * F
+            self.feat_index = tf.placeholder(tf.int32, shape=[None, None], 
+                                                 name="feat_index")  # None * F #placeholder是占位符，对feat_index进行定义但未赋值。keras已弃用。
             self.feat_value = tf.placeholder(tf.float32, shape=[None, None],
                                                  name="feat_value")  # None * F
             self.label = tf.placeholder(tf.float32, shape=[None, 1], name="label")  # None * 1
@@ -78,20 +78,20 @@ class DeepFM(BaseEstimator, TransformerMixin):
 
             self.weights = self._initialize_weights()
 
-            # model
+            # model          #tf.nn.embedding_lookup（tensor, id）从tensor张量里面找索引为id的元素
             self.embeddings = tf.nn.embedding_lookup(self.weights["feature_embeddings"],
-                                                             self.feat_index)  # None * F * K
-            feat_value = tf.reshape(self.feat_value, shape=[-1, self.field_size, 1])
-            self.embeddings = tf.multiply(self.embeddings, feat_value)
+                                                             self.feat_index)  # None * F * K 用的是标准正态分布初始化权重
+            feat_value = tf.reshape(self.feat_value, shape=[-1, self.field_size, 1]) #
+            self.embeddings = tf.multiply(self.embeddings, feat_value) #相同位置元素相乘 相当于w*x
 
             # ---------- first order term ----------
-            self.y_first_order = tf.nn.embedding_lookup(self.weights["feature_bias"], self.feat_index) # None * F * 1
-            self.y_first_order = tf.reduce_sum(tf.multiply(self.y_first_order, feat_value), 2)  # None * F
-            self.y_first_order = tf.nn.dropout(self.y_first_order, self.dropout_keep_fm[0]) # None * F
+            self.y_first_order = tf.nn.embedding_lookup(self.weights["feature_bias"], self.feat_index) # None * F * 1 找对应位置的b，这个b不是随机初始化
+            self.y_first_order = tf.reduce_sum(tf.multiply(self.y_first_order, feat_value), 2)  # None * F 相当于b * x ？然后求和，第二维消失
+            self.y_first_order = tf.nn.dropout(self.y_first_order, self.dropout_keep_fm[0]) # None * F 随机仍，防止过拟合
 
             # ---------- second order term ---------------
             # sum_square part
-            self.summed_features_emb = tf.reduce_sum(self.embeddings, 1)  # None * K
+            self.summed_features_emb = tf.reduce_sum(self.embeddings, 1)  # None * K 第一维相加
             self.summed_features_emb_square = tf.square(self.summed_features_emb)  # None * K
 
             # square_sum part
@@ -99,7 +99,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
             self.squared_sum_features_emb = tf.reduce_sum(self.squared_features_emb, 1)  # None * K
 
             # second order
-            self.y_second_order = 0.5 * tf.subtract(self.summed_features_emb_square, self.squared_sum_features_emb)  # None * K
+            self.y_second_order = 0.5 * tf.subtract(self.summed_features_emb_square, self.squared_sum_features_emb)  # None * K 相减
             self.y_second_order = tf.nn.dropout(self.y_second_order, self.dropout_keep_fm[1])  # None * K
 
             # ---------- Deep component ----------
@@ -119,7 +119,7 @@ class DeepFM(BaseEstimator, TransformerMixin):
                 concat_input = tf.concat([self.y_first_order, self.y_second_order], axis=1)
             elif self.use_deep:
                 concat_input = self.y_deep
-            self.out = tf.add(tf.matmul(concat_input, self.weights["concat_projection"]), self.weights["concat_bias"])
+            self.out = tf.add(tf.matmul(concat_input, self.weights["concat_projection"]), self.weights["concat_bias"]) #矩阵相乘，线性代数知识
 
             # loss
             if self.loss_type == "logloss":
@@ -181,8 +181,8 @@ class DeepFM(BaseEstimator, TransformerMixin):
 
         # embeddings
         weights["feature_embeddings"] = tf.Variable(
-            tf.random_normal([self.feature_size, self.embedding_size], 0.0, 0.01),
-            name="feature_embeddings")  # feature_size * K
+            tf.random_normal([self.feature_size, self.embedding_size], 0.0, 0.01), 
+            name="feature_embeddings")  # feature_size * K 标准正态分布初始化
         weights["feature_bias"] = tf.Variable(
             tf.random_uniform([self.feature_size, 1], 0.0, 1.0), name="feature_bias")  # feature_size * 1
 
